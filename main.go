@@ -1,34 +1,26 @@
-// main.go - Loop principal do jogo
 package main
 
-import "os"
+import (
+	"flag"
+	"log"
+)
 
 func main() {
-	// Inicializa a interface (termbox)
-	interfaceIniciar()
-	defer interfaceFinalizar()
+	// Define uma flag de linha de comando para escolher o modo de execução.
+	// O valor padrão é "client".
+	mode := flag.String("mode", "client", "run in 'client' or 'server' mode")
+	
+	// Analisa as flags fornecidas na linha de comando.
+	flag.Parse()
 
-	// Usa "mapa.txt" como arquivo padrão ou lê o primeiro argumento
-	mapaFile := "mapa.txt"
-	if len(os.Args) > 1 {
-		mapaFile = os.Args[1]
-	}
-
-	// Inicializa o jogo
-	jogo := jogoNovo()
-	if err := jogoCarregarMapa(mapaFile, &jogo); err != nil {
-		panic(err)
-	}
-
-	// Desenha o estado inicial do jogo
-	interfaceDesenharJogo(&jogo)
-
-	// Loop principal de entrada
-	for {
-		evento := interfaceLerEventoTeclado()
-		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
-			break
-		}
-		interfaceDesenharJogo(&jogo)
+	// Inicia o programa no modo apropriado com base na flag.
+	switch *mode {
+	case "server":
+		runServer() // Função definida em server.go
+	case "client":
+		runClient() // Função definida em client.go
+	default:
+		// Se um modo inválido for fornecido, exibe um erro e encerra.
+		log.Fatalf("Modo desconhecido: %s. Use 'client' ou 'server'.", *mode)
 	}
 }
