@@ -8,6 +8,12 @@ go.mod:
 
 build: go.mod
 	go build -o jogo
+
+server: build
+	./jogo -servidor -porta=8080 -mapa=mapa.txt
+
+client: build
+	./jogo -endereco=localhost:8080 -nome="JogadorX"
 	
 clean:
 	rm -f jogo

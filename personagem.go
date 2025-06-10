@@ -44,3 +44,51 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	}
 	return true // Continua o jogo
 }
+
+// Atualiza a posição do personagem no modo multiplayer
+func personagemMoverMultiplayer(tecla rune, jogo *Jogo) {
+	if jogo.Cliente == nil {
+		return
+	}
+	
+	// Enviar comando de movimento para o servidor
+	err := jogo.Cliente.EnviarComando("mover", tecla)
+	if err != nil {
+		jogo.StatusMsg = fmt.Sprintf("Erro ao mover: %v", err)
+	}
+}
+
+// Define o que ocorre quando o jogador pressiona a tecla de interação no modo multiplayer
+func personagemInteragirMultiplayer(jogo *Jogo) {
+	if jogo.Cliente == nil {
+		return
+	}
+	
+	// Enviar comando de interação para o servidor
+	err := jogo.Cliente.EnviarComando("interagir", 0)
+	if err != nil {
+		jogo.StatusMsg = fmt.Sprintf("Erro ao interagir: %v", err)
+	} else {
+		jogo.StatusMsg = fmt.Sprintf("Interagindo em (%d, %d)", jogo.PosX, jogo.PosY)
+	}
+}
+
+// Processa o evento do teclado e executa a ação correspondente no modo multiplayer
+func personagemExecutarAcaoMultiplayer(ev EventoTeclado, jogo *Jogo) bool {
+	switch ev.Tipo {
+	case "sair":
+		// Sair do cliente antes de encerrar
+		if jogo.Cliente != nil {
+			jogo.Cliente.Sair()
+		}
+		// Retorna false para indicar que o jogo deve terminar
+		return false
+	case "interagir":
+		// Executa a ação de interação
+		personagemInteragirMultiplayer(jogo)
+	case "mover":
+		// Move o personagem com base na tecla
+		personagemMoverMultiplayer(ev.Tecla, jogo)
+	}
+	return true // Continua o jogo
+}

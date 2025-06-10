@@ -6,6 +6,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/nsf/termbox-go"
 )
 
@@ -77,6 +78,85 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	interfaceAtualizarTela()
 }
 
+// Renderiza o estado do jogo multiplayer
+func interfaceDesenharJogoMultiplayer(jogo *Jogo) {
+	// Atualiza o estado local com o estado do servidor
+	jogoAtualizarEstadoMultiplayer(jogo)
+	
+	interfaceLimparTela()
+
+	// Desenha todos os elementos do mapa
+	for y, linha := range jogo.Mapa {
+		for x, elem := range linha {
+			interfaceDesenharElemento(x, y, elem)
+		}
+	}
+
+	// Desenha o personagem local sobre o mapa
+	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Elemento{
+		Simbolo:  '☺',
+		Cor:      jogo.Cliente.Cor,
+		CorFundo: CorPadrao,
+		Tangivel: true,
+	})
+	
+	// Desenha os outros jogadores
+	for _, jogador := range jogo.OutrosJogadores {
+		interfaceDesenharElemento(jogador.PosX, jogador.PosY, Elemento{
+			Simbolo:  jogador.Simbolo,
+			Cor:      jogador.Cor,
+			CorFundo: CorPadrao,
+			Tangivel: true,
+		})
+	}
+
+	// Desenha a barra de status
+	interfaceDesenharBarraDeStatus(jogo)
+	
+	// Desenha informações de jogadores conectados
+	interfaceDesenharInfoJogadores(jogo)
+
+	// Força a atualização do terminal
+	interfaceAtualizarTela()
+}
+
+// Exibe informações sobre os jogadores conectados
+func interfaceDesenharInfoJogadores(jogo *Jogo) {
+	if jogo.Cliente == nil {
+		return
+	}
+	
+	// Mensagem com nome do jogador local
+	msgLocal := fmt.Sprintf("Você: %s", jogo.Cliente.Nome)
+	for i, c := range msgLocal {
+		termbox.SetCell(i, len(jogo.Mapa)+5, c, jogo.Cliente.Cor, CorPadrao)
+	}
+	
+	// Listagem de outros jogadores
+	msgOutros := "Outros jogadores: "
+	offset := len(msgOutros)
+	for i, c := range msgOutros {
+		termbox.SetCell(i, len(jogo.Mapa)+6, c, CorTexto, CorPadrao)
+	}
+	
+	// Nomes dos outros jogadores
+	linha := len(jogo.Mapa) + 6
+	coluna := offset
+	for _, jogador := range jogo.OutrosJogadores {
+		info := fmt.Sprintf("%s ", jogador.Nome)
+		for _, c := range info {
+			termbox.SetCell(coluna, linha, c, jogador.Cor, CorPadrao)
+			coluna++
+		}
+		
+		// Avança para próxima linha se estiver muito longo
+		if coluna > 70 {
+			linha++
+			coluna = offset
+		}
+	}
+}
+
 // Limpa a tela do terminal
 func interfaceLimparTela() {
 	termbox.Clear(CorPadrao, CorPadrao)
@@ -89,7 +169,7 @@ func interfaceAtualizarTela() {
 
 // Desenha um elemento na posição (x, y)
 func interfaceDesenharElemento(x, y int, elem Elemento) {
-	termbox.SetCell(x, y, elem.simbolo, elem.cor, elem.corFundo)
+	termbox.SetCell(x, y, elem.Simbolo, elem.Cor, elem.CorFundo)
 }
 
 // Exibe uma barra de status com informações úteis ao jogador

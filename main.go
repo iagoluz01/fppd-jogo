@@ -1,26 +1,59 @@
+// main.go - Loop principal do jogo
 package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 )
 
 func main() {
-	// Define uma flag de linha de comando para escolher o modo de execução.
-	// O valor padrão é "client".
-	mode := flag.String("mode", "client", "run in 'client' or 'server' mode")
+	// Definir flags para modo cliente e servidor
+	modoServidor := flag.Bool("servidor", false, "Iniciar como servidor")
+	porta := flag.String("porta", "8080", "Porta para o servidor")
+	endereco := flag.String("endereco", "localhost:8080", "Endereço do servidor para conexão do cliente")
+	nome := flag.String("nome", "Jogador", "Nome do jogador")
+	mapaFile := flag.String("mapa", "mapa.txt", "Arquivo de mapa")
 	
-	// Analisa as flags fornecidas na linha de comando.
 	flag.Parse()
 
-	// Inicia o programa no modo apropriado com base na flag.
-	switch *mode {
-	case "server":
-		runServer() // Função definida em server.go
-	case "client":
-		runClient() // Função definida em client.go
-	default:
-		// Se um modo inválido for fornecido, exibe um erro e encerra.
-		log.Fatalf("Modo desconhecido: %s. Use 'client' ou 'server'.", *mode)
+	// Verificar o modo de execução
+	if *modoServidor {
+		// Modo servidor - inicia o servidor RPC
+		fmt.Println("Iniciando servidor na porta:", *porta)
+		fmt.Println("Usando mapa:", *mapaFile)
+		
+		// Iniciar o servidor
+		IniciarServidor(*porta, *mapaFile)
+	} else {
+		// Modo cliente - inicia o cliente do jogo
+		fmt.Println("Conectando ao servidor:", *endereco)
+		fmt.Println("Nome do jogador:", *nome)
+		
+		// Inicializa a interface (termbox)
+		interfaceIniciar()
+		defer interfaceFinalizar()
+		
+		// Conectar ao servidor
+		cliente, err := NovoCliente(*endereco, *nome, '☺', CorCinzaEscuro)
+		if err != nil {
+			fmt.Printf("Erro ao conectar: %v\n", err)
+			return
+		}
+		defer cliente.Sair()
+		
+		// Criar jogo local
+		jogo := jogoNovoMultiplayer(cliente)
+		
+		// Desenha o estado inicial do jogo
+		interfaceDesenharJogoMultiplayer(&jogo)
+		
+		// Loop principal de entrada
+		for {
+			evento := interfaceLerEventoTeclado()
+			if continuar := personagemExecutarAcaoMultiplayer(evento, &jogo); !continuar {
+				break
+			}
+			interfaceDesenharJogoMultiplayer(&jogo)
+		}
 	}
 }

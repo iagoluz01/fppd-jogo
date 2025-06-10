@@ -8,10 +8,10 @@ import (
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	simbolo   rune
-	cor       Cor
-	corFundo  Cor
-	tangivel  bool // Indica se o elemento bloqueia passagem
+	Simbolo   rune // Letra maiúscula para exportar o campo
+	Cor       Cor
+	CorFundo  Cor
+	Tangivel  bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
@@ -20,22 +20,28 @@ type Jogo struct {
 	PosX, PosY      int          // posição atual do personagem
 	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg       string       // mensagem para a barra de status
+	Cliente         *ClienteJogo // referência ao cliente para modo multiplayer
+	OutrosJogadores map[int]JogadorInfo // informações sobre outros jogadores
 }
-
-// Elementos visuais do jogo
-var (
-	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
-)
 
 // Cria e retorna uma nova instância do jogo
 func jogoNovo() Jogo {
 	// O ultimo elemento visitado é inicializado como vazio
 	// pois o jogo começa com o personagem em uma posição vazia
-	return Jogo{UltimoVisitado: Vazio}
+	return Jogo{
+		UltimoVisitado: Vazio,
+		OutrosJogadores: make(map[int]JogadorInfo),
+	}
+}
+
+// Cria uma nova instância do jogo para modo multiplayer
+func jogoNovoMultiplayer(cliente *ClienteJogo) Jogo {
+	jogo := Jogo{
+		UltimoVisitado: Vazio,
+		Cliente: cliente,
+		OutrosJogadores: make(map[int]JogadorInfo),
+	}
+	return jogo
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
@@ -54,13 +60,13 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 		for x, ch := range linha {
 			e := Vazio
 			switch ch {
-			case Parede.simbolo:
+			case Parede.Simbolo:
 				e = Parede
-			case Inimigo.simbolo:
+			case Inimigo.Simbolo:
 				e = Inimigo
-			case Vegetacao.simbolo:
+			case Vegetacao.Simbolo:
 				e = Vegetacao
-			case Personagem.simbolo:
+			case Personagem.Simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
 			}
 			linhaElems = append(linhaElems, e)
@@ -87,8 +93,17 @@ func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
 	}
 
 	// Verifica se o elemento de destino é tangível (bloqueia passagem)
-	if jogo.Mapa[y][x].tangivel {
+	if jogo.Mapa[y][x].Tangivel {
 		return false
+	}
+
+	// Em modo multiplayer, verificar se há outro jogador na posição
+	if jogo.OutrosJogadores != nil {
+		for _, outroJogador := range jogo.OutrosJogadores {
+			if outroJogador.PosX == x && outroJogador.PosY == y {
+				return false
+			}
+		}
 	}
 
 	// Pode mover para a posição
@@ -105,4 +120,41 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	jogo.Mapa[y][x] = jogo.UltimoVisitado     // restaura o conteúdo anterior
 	jogo.UltimoVisitado = jogo.Mapa[ny][nx]   // guarda o conteúdo atual da nova posição
 	jogo.Mapa[ny][nx] = elemento              // move o elemento
+}
+
+// Atualiza o estado do jogo com base no estado recebido do servidor
+func jogoAtualizarEstadoMultiplayer(jogo *Jogo) {
+	if jogo.Cliente == nil || clienteRPC == nil {
+		return
+	}
+	
+	// Obter o estado atual do servidor (já atualizado pela goroutine)
+	estado := clienteRPC.Estado
+	
+	// Atualizar posição do jogador local
+	jogadorLocal, existe := estado.Jogadores[jogo.Cliente.ID]
+	if !existe {
+		return
+	}
+	
+	jogo.PosX = jogadorLocal.PosX
+	jogo.PosY = jogadorLocal.PosY
+	
+	// Atualizar mapa com base no estado do servidor
+	if len(estado.ElementosMapa) > 0 {
+		jogo.Mapa = estado.ElementosMapa
+	}
+	
+	// Atualizar mapa dos outros jogadores
+	jogo.OutrosJogadores = make(map[int]JogadorInfo)
+	for id, info := range estado.Jogadores {
+		if id != jogo.Cliente.ID {
+			jogo.OutrosJogadores[id] = info
+		}
+	}
+	
+	// Atualizar mensagens
+	if len(estado.Mensagens) > 0 {
+		jogo.StatusMsg = estado.Mensagens[len(estado.Mensagens)-1]
+	}
 }
