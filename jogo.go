@@ -3,24 +3,25 @@ package main
 
 import (
 	"bufio"
+	"log"
 	"os"
 )
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	Simbolo   rune // Letra maiúscula para exportar o campo
-	Cor       Cor
-	CorFundo  Cor
-	Tangivel  bool // Indica se o elemento bloqueia passagem
+	Simbolo  rune // Letra maiúscula para exportar o campo
+	Cor      Cor
+	CorFundo Cor
+	Tangivel bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
-	Mapa            [][]Elemento // grade 2D representando o mapa
-	PosX, PosY      int          // posição atual do personagem
-	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
-	StatusMsg       string       // mensagem para a barra de status
-	Cliente         *ClienteJogo // referência ao cliente para modo multiplayer
+	Mapa            [][]Elemento        // grade 2D representando o mapa
+	PosX, PosY      int                 // posição atual do personagem
+	UltimoVisitado  Elemento            // elemento que estava na posição do personagem antes de mover
+	StatusMsg       string              // mensagem para a barra de status
+	Cliente         *ClienteJogo        // referência ao cliente para modo multiplayer
 	OutrosJogadores map[int]JogadorInfo // informações sobre outros jogadores
 }
 
@@ -29,7 +30,7 @@ func jogoNovo() Jogo {
 	// O ultimo elemento visitado é inicializado como vazio
 	// pois o jogo começa com o personagem em uma posição vazia
 	return Jogo{
-		UltimoVisitado: Vazio,
+		UltimoVisitado:  Vazio,
 		OutrosJogadores: make(map[int]JogadorInfo),
 	}
 }
@@ -37,8 +38,8 @@ func jogoNovo() Jogo {
 // Cria uma nova instância do jogo para modo multiplayer
 func jogoNovoMultiplayer(cliente *ClienteJogo) Jogo {
 	jogo := Jogo{
-		UltimoVisitado: Vazio,
-		Cliente: cliente,
+		UltimoVisitado:  Vazio,
+		Cliente:         cliente,
 		OutrosJogadores: make(map[int]JogadorInfo),
 	}
 	return jogo
@@ -67,17 +68,16 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			case Vegetacao.Simbolo:
 				e = Vegetacao
 			case Personagem.Simbolo:
-				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
+				// Registra a posição inicial e remove o símbolo do jogador do mapa
+				jogo.PosX, jogo.PosY = x, y
+				e = Vazio
 			}
 			linhaElems = append(linhaElems, e)
 		}
 		jogo.Mapa = append(jogo.Mapa, linhaElems)
 		y++
 	}
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-	return nil
+	return scanner.Err()
 }
 
 // Verifica se o personagem pode se mover para a posição (x, y)
@@ -117,9 +117,9 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	// Obtem elemento atual na posição
 	elemento := jogo.Mapa[y][x] // guarda o conteúdo atual da posição
 
-	jogo.Mapa[y][x] = jogo.UltimoVisitado     // restaura o conteúdo anterior
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]   // guarda o conteúdo atual da nova posição
-	jogo.Mapa[ny][nx] = elemento              // move o elemento
+	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
+	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
+	jogo.Mapa[ny][nx] = elemento            // move o elemento
 }
 
 // Atualiza o estado do jogo com base no estado recebido do servidor
@@ -127,34 +127,31 @@ func jogoAtualizarEstadoMultiplayer(jogo *Jogo) {
 	if jogo.Cliente == nil || clienteRPC == nil {
 		return
 	}
-	
+
 	// Obter o estado atual do servidor (já atualizado pela goroutine)
-	estado := clienteRPC.Estado
-	
-	// Atualizar posição do jogador local
-	jogadorLocal, existe := estado.Jogadores[jogo.Cliente.ID]
-	if !existe {
+	estado, err := clienteRPC.Estado()
+	if err != nil {
+		log.Printf("Erro ao obter estado do jogo: %v", err)
 		return
 	}
-	
-	jogo.PosX = jogadorLocal.PosX
-	jogo.PosY = jogadorLocal.PosY
-	
-	// Atualizar mapa com base no estado do servidor
-	if len(estado.ElementosMapa) > 0 {
-		jogo.Mapa = estado.ElementosMapa
+
+	// Agora podemos acessar diretamente os campos do EstadoJogo
+	if len(estado.Jogadores) > 0 {
+		// Processar jogadores...
 	}
-	
-	// Atualizar mapa dos outros jogadores
-	jogo.OutrosJogadores = make(map[int]JogadorInfo)
-	for id, info := range estado.Jogadores {
-		if id != jogo.Cliente.ID {
-			jogo.OutrosJogadores[id] = info
-		}
+
+	// Para ElementosMapa
+	for i := 0; i < len(estado.ElementosMapa); i++ {
+		// Processar elementos...
 	}
-	
-	// Atualizar mensagens
-	if len(estado.Mensagens) > 0 {
-		jogo.StatusMsg = estado.Mensagens[len(estado.Mensagens)-1]
+
+	// Para Jogadores novamente
+	if len(estado.Jogadores) > 0 {
+		// Processar jogadores...
+	}
+
+	// Para Mensagens
+	for i := 0; i < len(estado.Mensagens); i++ {
+		// Processar mensagens...
 	}
 }

@@ -52,7 +52,7 @@ func personagemMoverMultiplayer(tecla rune, jogo *Jogo) {
 	}
 	
 	// Enviar comando de movimento para o servidor
-	err := jogo.Cliente.EnviarComando("mover", tecla)
+	_, err := jogo.Cliente.EnviarComando("mover", tecla)
 	if err != nil {
 		jogo.StatusMsg = fmt.Sprintf("Erro ao mover: %v", err)
 	}
@@ -65,7 +65,7 @@ func personagemInteragirMultiplayer(jogo *Jogo) {
 	}
 	
 	// Enviar comando de interação para o servidor
-	err := jogo.Cliente.EnviarComando("interagir", 0)
+	_, err := jogo.Cliente.EnviarComando("atacar", 0)
 	if err != nil {
 		jogo.StatusMsg = fmt.Sprintf("Erro ao interagir: %v", err)
 	} else {

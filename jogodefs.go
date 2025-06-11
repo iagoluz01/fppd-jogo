@@ -1,15 +1,5 @@
 package main
 
-// ClienteJogo encapsula as informações de um cliente conectado ao jogo
-type ClienteJogo struct {
-	ID      int
-	Nome    string
-	Simbolo rune
-	Cor     Cor
-	PosX    int
-	PosY    int
-}
-
 // JogadorInfo contém informações sobre um jogador conectado
 type JogadorInfo struct {
 	ID      int
@@ -25,6 +15,8 @@ type EstadoJogo struct {
 	Jogadores     map[int]JogadorInfo
 	ElementosMapa [][]Elemento
 	Mensagens     []string
+	StartX        int // posição inicial para novos jogadores
+	StartY        int // posição inicial para novos jogadores
 }
 
 // Elementos visuais do jogo (com campos exportados)
